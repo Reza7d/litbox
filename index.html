@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Simple Leitner Box</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 30px; }
+    #card { border: 2px solid #333; padding: 20px; margin: 20px auto; width: 300px; font-size: 1.2em; }
+    button { padding: 10px 20px; margin: 10px; cursor: pointer; }
+    #stats { margin-top: 20px; font-size: 0.9em; }
+  </style>
+</head>
+<body>
+  <h1>Leitner Box</h1>
+  <div id="card">Loading...</div>
+  <button onclick="showAnswer()">Show Answer</button>
+  <div id="answer" style="display:none;"></div>
+  <br>
+  <button onclick="correct()">✅ Correct</button>
+  <button onclick="wrong()">❌ Wrong</button>
+  <div id="stats"></div>
+
+  <script>
+    const cards = [
+      {q: "Capital of France?", a: "Paris", box: 1},
+      {q: "2 + 2?", a: "4", box: 1},
+      {q: "Water chemical formula?", a: "H₂O", box: 1},
+    ];
+
+    let current = 0;
+
+    function pickCard() {
+      if(cards.length === 0) {
+        document.getElementById('card').textContent = "🎉 All done!";
+        document.getElementById('answer').style.display = "none";
+        return;
+      }
+      current = Math.floor(Math.random() * cards.length);
+      document.getElementById('card').textContent = cards[current].q;
+      document.getElementById('answer').style.display = "none";
+      updateStats();
+    }
+
+    function showAnswer() {
+      document.getElementById('answer').textContent = cards[current].a;
+      document.getElementById('answer').style.display = "block";
+    }
+
+    function correct() {
+      cards[current].box++;
+      if(cards[current].box > 3) { cards.splice(current, 1); } // mastered
+      pickCard();
+    }
+
+    function wrong() {
+      cards[current].box = 1;
+      pickCard();
+    }
+
+    function updateStats() {
+      const boxCounts = [0,0,0,0];
+      cards.forEach(c => boxCounts[c.box]++);
+      document.getElementById('stats').textContent =
+        `Box 1: ${boxCounts[1]} | Box 2: ${boxCounts[2]} | Box 3: ${boxCounts[3]}`;
+    }
+
+    pickCard();
+  </script>
+</body>
+</html>
