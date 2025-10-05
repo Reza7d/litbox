@@ -1,69 +1,404 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Simple Leitner Box</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Leitner Box – Improved</title>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; padding: 30px; }
-    #card { border: 2px solid #333; padding: 20px; margin: 20px auto; width: 300px; font-size: 1.2em; }
-    button { padding: 10px 20px; margin: 10px; cursor: pointer; }
-    #stats { margin-top: 20px; font-size: 0.9em; }
+    :root {
+      --bg: #0f172a; /* slate-900 */
+      --panel: #111827; /* gray-900 */
+      --muted: #94a3b8; /* slate-400 */
+      --text: #e5e7eb; /* gray-200 */
+      --accent: #4f46e5; /* indigo-600 */
+      --accent-2: #22c55e; /* green-500 */
+      --danger: #ef4444; /* red-500 */
+      --warning: #f59e0b; /* amber-500 */
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; background: linear-gradient(180deg, #0b1024, #0f172a);
+      color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+      display: grid; place-items: center; padding: 28px;
+    }
+    .app { width: min(980px, 95vw); }
+    header {
+      display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px;
+    }
+    h1 { font-size: clamp(20px, 4vw, 36px); margin: 0; letter-spacing: 0.5px; }
+    .row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+    .btn { border: 0; border-radius: var(--radius); padding: 10px 14px; background: #1f2937; color: var(--text); cursor: pointer; font-weight: 600; transition: transform .03s ease, filter .2s ease, background .2s ease; }
+    .btn:hover { filter: brightness(1.1); }
+    .btn:active { transform: translateY(1px); }
+    .btn[disabled] { opacity: .45; cursor: not-allowed; }
+    .btn.primary { background: var(--accent); }
+    .btn.success { background: var(--accent-2); }
+    .btn.danger { background: var(--danger); }
+    .btn.warning { background: var(--warning); }
+
+    .card {
+      background: rgba(17,24,39,.75); backdrop-filter: saturate(120%) blur(5px);
+      border: 1px solid rgba(148,163,184,.18); box-shadow: 0 10px 30px rgba(0,0,0,.25);
+      border-radius: 20px; padding: clamp(16px, 3vw, 28px); margin: 12px 0 6px; text-align: center;
+    }
+    .prompt { font-size: clamp(18px, 3vw, 28px); line-height: 1.35; min-height: 2.8em; }
+    .answer { font-size: clamp(16px, 2.5vw, 22px); color: #c7d2fe; margin-top: 8px; display: none; }
+
+    .stats { margin: 10px 0 2px; color: var(--muted); font-size: 14px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 6px; }
+    .pill { display: inline-flex; align-items: center; gap: 8px; background: #0b1222; border: 1px solid rgba(148,163,184,.18); padding: 6px 10px; border-radius: 999px; }
+
+    .grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 18px; }
+    @media (min-width: 840px) { .grid { grid-template-columns: 1.2fr .8fr; } }
+
+    .panel { background: rgba(17,24,39,.6); border: 1px solid rgba(148,163,184,.18); border-radius: 16px; padding: 14px; }
+    .panel h2 { margin: 0 0 10px; font-size: 16px; color: #cbd5e1; letter-spacing: .3px; }
+
+    label { font-size: 13px; color: var(--muted); display: block; margin: 8px 0 4px; }
+    input, textarea { width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(148,163,184,.28); background: #0b1020; color: var(--text); }
+
+    .kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; background: #0b1222; border: 1px solid rgba(148,163,184,.28); padding: 2px 6px; border-radius: 6px; }
+    footer { margin-top: 10px; color: var(--muted); font-size: 12px; text-align: center; }
   </style>
 </head>
 <body>
-  <h1>Leitner Box</h1>
-  <div id="card">Loading...</div>
-  <button onclick="showAnswer()">Show Answer</button>
-  <div id="answer" style="display:none;"></div>
-  <br>
-  <button onclick="correct()">✅ Correct</button>
-  <button onclick="wrong()">❌ Wrong</button>
-  <div id="stats"></div>
+  <div class="app" role="application" aria-label="Leitner Box Trainer">
+    <header>
+      <h1>Leitner Box</h1>
+      <div class="row" role="group" aria-label="Session actions">
+        <button id="showBtn" class="btn" aria-keyshortcuts="space" title="Show answer (Space)">Show Answer</button>
+        <button id="correctBtn" class="btn success" aria-keyshortcuts="y" title="Mark correct (Y)">✅ Correct</button>
+        <button id="wrongBtn" class="btn danger" aria-keyshortcuts="n" title="Mark wrong (N)">❌ Wrong</button>
+      </div>
+    </header>
+
+    <div class="card" aria-live="polite" aria-atomic="true">
+      <div id="prompt" class="prompt">Loading…</div>
+      <div id="answer" class="answer"></div>
+    </div>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="grid">
+      <section class="panel" aria-labelledby="editor-heading">
+        <h2 id="editor-heading">Add / Edit Cards</h2>
+        <form id="addForm" class="row" onsubmit="return false;">
+          <div style="flex:1 1 220px;">
+            <label for="q">Question</label>
+            <input id="q" required placeholder="e.g., Capital of France?" />
+          </div>
+          <div style="flex:1 1 220px;">
+            <label for="a">Answer</label>
+            <input id="a" required placeholder="e.g., Paris" />
+          </div>
+          <button id="addBtn" class="btn primary" style="align-self:flex-end;">Add</button>
+        </form>
+        <div class="row">
+          <button id="exportBtn" class="btn">Export JSON</button>
+          <label class="btn" for="importFile" style="position:relative; overflow:hidden;">Import JSON<input id="importFile" type="file" accept="application/json" style="position:absolute; inset:0; opacity:0; cursor:pointer"></label>
+          <button id="resetBtn" class="btn warning" title="Reset to example deck">Reset Deck</button>
+          <button id="wipeBtn" class="btn danger" title="Clear everything">Wipe All</button>
+        </div>
+        <p style="margin:6px 0 0; color:var(--muted); font-size:12px">Shortcuts: <span class="kbd">Space</span> show · <span class="kbd">Y</span> correct · <span class="kbd">N</span> wrong</p>
+      </section>
+
+      <section class="panel" aria-labelledby="schedule-heading">
+        <h2 id="schedule-heading">Schedule</h2>
+        <p style="margin:0 0 8px; color:var(--muted);">Due cards are shown first. Cards advance through 5 boxes with growing intervals.</p>
+        <ul id="intervals" style="list-style:none; padding:0; margin:0; font-size:14px; color:#cbd5e1;"></ul>
+        <div id="nextDueMsg" style="margin-top:10px; color:var(--muted);"></div>
+      </section>
+    </div>
+
+    <footer>
+      Built with ❤️ · Data stored in your browser (LocalStorage)
+    </footer>
+  </div>
 
   <script>
-    const cards = [
-      {q: "Capital of France?", a: "Paris", box: 1},
-      {q: "2 + 2?", a: "4", box: 1},
-      {q: "Water chemical formula?", a: "H₂O", box: 1},
+    // ——— Storage helpers ———
+    const LS_KEY = 'leitner.cards.v2';
+    const LS_META = 'leitner.meta.v2';
+
+    const DEFAULT_CARDS = [
+      { id: crypto.randomUUID(), q: 'Capital of France?', a: 'Paris', box: 1, nextDue: 0, lapses: 0, reviews: 0 },
+      { id: crypto.randomUUID(), q: '2 + 2?', a: '4', box: 1, nextDue: 0, lapses: 0, reviews: 0 },
+      { id: crypto.randomUUID(), q: 'Water chemical formula?', a: 'H₂O', box: 1, nextDue: 0, lapses: 0, reviews: 0 },
     ];
 
-    let current = 0;
+    const DEFAULT_META = { mastered: 0 };
+
+    const INTERVALS_MIN = { 1: 0, 2: 10, 3: 60, 4: 720, 5: 1440 * 3 }; // minutes
+
+    function loadDeck() {
+      const raw = localStorage.getItem(LS_KEY);
+      const metaRaw = localStorage.getItem(LS_META);
+      let cards = raw ? JSON.parse(raw) : structuredClone(DEFAULT_CARDS);
+      let meta = metaRaw ? JSON.parse(metaRaw) : structuredClone(DEFAULT_META);
+      return { cards, meta };
+    }
+
+    function saveDeck(cards, meta) {
+      localStorage.setItem(LS_KEY, JSON.stringify(cards));
+      localStorage.setItem(LS_META, JSON.stringify(meta));
+    }
+
+    // ——— State ———
+    let { cards, meta } = loadDeck();
+    let currentIndex = -1; // index in filtered due order
+
+    // ——— Utility ———
+    const now = () => Date.now();
+    const mins = m => m * 60 * 1000;
+
+    function scheduleNext(card) {
+      const clampBox = Math.max(1, Math.min(5, card.box));
+      const wait = INTERVALS_MIN[clampBox];
+      card.nextDue = now() + mins(wait);
+    }
+
+    function humanETA(ms) {
+      const s = Math.ceil(ms / 1000);
+      if (s <= 60) return `${s}s`;
+      const m = Math.ceil(s / 60);
+      if (m < 60) return `${m}m`;
+      const h = Math.ceil(m / 60);
+      if (h < 48) return `${h}h`;
+      const d = Math.ceil(h / 24);
+      return `${d}d`;
+    }
+
+    function sortDueFirst(a, b) {
+      if (a.nextDue <= now() && b.nextDue > now()) return -1;
+      if (a.nextDue > now() && b.nextDue <= now()) return 1;
+      return (a.nextDue || 0) - (b.nextDue || 0);
+    }
+
+    // ——— Core flow ———
+    function getDueCards() {
+      return cards.slice().sort(sortDueFirst);
+    }
 
     function pickCard() {
-      if(cards.length === 0) {
-        document.getElementById('card').textContent = "🎉 All done!";
-        document.getElementById('answer').style.display = "none";
+      const ordered = getDueCards();
+      if (ordered.length === 0) {
+        showEmpty("No cards in the deck.");
         return;
       }
-      current = Math.floor(Math.random() * cards.length);
-      document.getElementById('card').textContent = cards[current].q;
-      document.getElementById('answer').style.display = "none";
+
+      const dueNow = ordered.filter(c => (c.nextDue || 0) <= now());
+
+      if (dueNow.length === 0) {
+        const next = ordered[0];
+        const eta = humanETA((next.nextDue || 0) - now());
+        document.getElementById('prompt').textContent = '🎉 Nothing due right now';
+        const a = document.getElementById('answer');
+        a.style.display = 'block';
+        a.textContent = `Next card in ~ ${eta}`;
+        setButtonsDisabled(true);
+        updateStats();
+        renderIntervals();
+        renderNextDueMsg();
+        return;
+      }
+
+      // pick a random due card (uniform)
+      const pick = dueNow[Math.floor(Math.random() * dueNow.length)];
+      currentIndex = cards.findIndex(c => c.id === pick.id);
+
+      const promptEl = document.getElementById('prompt');
+      const answerEl = document.getElementById('answer');
+      promptEl.textContent = pick.q;
+      answerEl.textContent = pick.a;
+      answerEl.style.display = 'none';
+
+      setButtonsDisabled(false);
       updateStats();
+      renderIntervals();
+      renderNextDueMsg();
+    }
+
+    function showEmpty(msg) {
+      document.getElementById('prompt').textContent = msg;
+      const a = document.getElementById('answer');
+      a.style.display = 'none';
+      setButtonsDisabled(true);
+      updateStats();
+      renderIntervals();
+      renderNextDueMsg();
+    }
+
+    function setButtonsDisabled(flag) {
+      document.getElementById('showBtn').disabled = flag;
+      document.getElementById('correctBtn').disabled = flag;
+      document.getElementById('wrongBtn').disabled = flag;
     }
 
     function showAnswer() {
-      document.getElementById('answer').textContent = cards[current].a;
-      document.getElementById('answer').style.display = "block";
+      const a = document.getElementById('answer');
+      a.style.display = 'block';
     }
 
-    function correct() {
-      cards[current].box++;
-      if(cards[current].box > 3) { cards.splice(current, 1); } // mastered
+    function markCorrect() {
+      if (currentIndex === -1) return;
+      const c = cards[currentIndex];
+      c.box = Math.min(6, (c.box || 1) + 1);
+      c.reviews = (c.reviews || 0) + 1;
+      if (c.box > 5) {
+        // mastered: remove from deck, increment counter
+        cards.splice(currentIndex, 1);
+        meta.mastered = (meta.mastered || 0) + 1;
+      } else {
+        scheduleNext(c);
+      }
+      saveDeck(cards, meta);
+      currentIndex = -1;
       pickCard();
     }
 
-    function wrong() {
-      cards[current].box = 1;
+    function markWrong() {
+      if (currentIndex === -1) return;
+      const c = cards[currentIndex];
+      c.box = 1;
+      c.lapses = (c.lapses || 0) + 1;
+      scheduleNext(c);
+      saveDeck(cards, meta);
+      currentIndex = -1;
       pickCard();
     }
 
     function updateStats() {
-      const boxCounts = [0,0,0,0];
-      cards.forEach(c => boxCounts[c.box]++);
-      document.getElementById('stats').textContent =
-        `Box 1: ${boxCounts[1]} | Box 2: ${boxCounts[2]} | Box 3: ${boxCounts[3]}`;
+      const counts = {1:0,2:0,3:0,4:0,5:0};
+      const due = {1:0,2:0,3:0,4:0,5:0};
+      for (const c of cards) {
+        const b = Math.max(1, Math.min(5, c.box || 1));
+        counts[b]++;
+        if ((c.nextDue || 0) <= now()) due[b]++;
+      }
+      const total = Object.values(counts).reduce((a,b)=>a+b,0);
+      const dueTotal = Object.values(due).reduce((a,b)=>a+b,0);
+
+      const stats = document.getElementById('stats');
+      stats.innerHTML = `
+        <span class="pill" title="Due / Total in box 1">Box 1: ${due[1]}/${counts[1]}</span>
+        <span class="pill" title="Box 2">Box 2: ${due[2]}/${counts[2]}</span>
+        <span class="pill" title="Box 3">Box 3: ${due[3]}/${counts[3]}</span>
+        <span class="pill" title="Box 4">Box 4: ${due[4]}/${counts[4]}</span>
+        <span class="pill" title="Box 5">Box 5: ${due[5]}/${counts[5]}</span>
+        <span class="pill" title="Mastered so far">Mastered: ${meta.mastered || 0}</span>
+        <span class="pill" title="Due today / Active">Due now: ${dueTotal} / Active: ${total}</span>
+      `;
     }
 
+    function renderIntervals() {
+      const ul = document.getElementById('intervals');
+      ul.innerHTML = '';
+      for (let b=1; b<=5; b++) {
+        const li = document.createElement('li');
+        const mins = INTERVALS_MIN[b];
+        let label = '';
+        if (mins < 60) label = `${mins} min`;
+        else if (mins < 60*24) label = `${(mins/60)} hr`;
+        else label = `${(mins/60/24)} d`;
+        li.textContent = `Box ${b} → ${label}`;
+        ul.appendChild(li);
+      }
+    }
+
+    function renderNextDueMsg() {
+      const ordered = getDueCards();
+      const el = document.getElementById('nextDueMsg');
+      const next = ordered.find(c => (c.nextDue || 0) > now());
+      if (!next) { el.textContent = ''; return; }
+      const eta = humanETA((next.nextDue || 0) - now());
+      const dueAt = new Date(next.nextDue).toLocaleString();
+      el.textContent = `Next review in about ${eta} (≈ ${dueAt}).`;
+    }
+
+    // ——— Form & deck controls ———
+    document.getElementById('addBtn').addEventListener('click', () => {
+      const q = document.getElementById('q');
+      const a = document.getElementById('a');
+      if (!q.value.trim() || !a.value.trim()) return;
+      const card = { id: crypto.randomUUID(), q: q.value.trim(), a: a.value.trim(), box: 1, nextDue: 0, lapses: 0, reviews: 0 };
+      scheduleNext(card); // schedule immediately
+      cards.push(card);
+      saveDeck(cards, meta);
+      q.value = ''; a.value = '';
+      pickCard();
+    });
+
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      const payload = { cards, meta, version: 2 };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'leitner_deck.json'; a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById('importFile').addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result);
+          if (Array.isArray(data.cards)) {
+            cards = data.cards.map(c => ({ id: c.id || crypto.randomUUID(), q: c.q, a: c.a, box: c.box||1, nextDue: c.nextDue||0, lapses: c.lapses||0, reviews: c.reviews||0 }));
+            meta = { mastered: (data.meta && data.meta.mastered) || 0 };
+            saveDeck(cards, meta);
+            pickCard();
+          } else if (Array.isArray(data)) {
+            // legacy: array of {q,a}
+            cards = data.map(x => ({ id: crypto.randomUUID(), q: x.q, a: x.a, box: 1, nextDue: 0, lapses: 0, reviews: 0 }));
+            meta = { mastered: 0 };
+            saveDeck(cards, meta);
+            pickCard();
+          } else {
+            alert('Invalid deck format.');
+          }
+        } catch (err) {
+          alert('Could not parse JSON: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      if (!confirm('Reset to example deck? This overwrites your current deck.')) return;
+      cards = structuredClone(DEFAULT_CARDS);
+      meta = structuredClone(DEFAULT_META);
+      for (const c of cards) scheduleNext(c);
+      saveDeck(cards, meta);
+      pickCard();
+    });
+
+    document.getElementById('wipeBtn').addEventListener('click', () => {
+      if (!confirm('Wipe all data (cards, schedule, mastered)?')) return;
+      cards = [];
+      meta = { mastered: 0 };
+      saveDeck(cards, meta);
+      pickCard();
+    });
+
+    // ——— Buttons & keys ———
+    document.getElementById('showBtn').addEventListener('click', showAnswer);
+    document.getElementById('correctBtn').addEventListener('click', markCorrect);
+    document.getElementById('wrongBtn').addEventListener('click', markWrong);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.target.matches('input, textarea')) return; // don't hijack typing
+      if (e.code === 'Space') { e.preventDefault(); showAnswer(); }
+      if (e.key.toLowerCase() === 'y') { e.preventDefault(); markCorrect(); }
+      if (e.key.toLowerCase() === 'n') { e.preventDefault(); markWrong(); }
+    });
+
+    // ——— Init ———
+    // If this is a fresh deck (no nextDue), schedule all.
+    if (cards.some(c => !c.nextDue)) { for (const c of cards) scheduleNext(c); saveDeck(cards, meta); }
     pickCard();
   </script>
 </body>
